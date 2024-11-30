@@ -159,7 +159,7 @@ class CSR(val xlen: Int) extends Module {
   val FS = 0.U(2.W)
   val SD = 0.U(1.W)
   val mstatus = Cat(SD, 0.U((xlen - 23).W), VM, MPRV, XS, FS, PRV3, IE3, PRV2, IE2, PRV1, IE1, PRV, IE)
-  val mtvec = Const.PC_EVEC.U(xlen.W)
+  val mtvec = Consts.PC_EVEC.U(xlen.W)
   val mtdeleg = 0x0.U(xlen.W)
 
   // interrupt registers
@@ -235,9 +235,7 @@ class CSR(val xlen: Int) extends Module {
   val csrValid = csrFile.map(_._1 === csr_addr).reduce(_ || _)
   val csrRO = csr_addr(11, 10).andR || csr_addr === CSR.mtvec || csr_addr === CSR.mtdeleg
   val wen = io.cmd === CSR.W || io.cmd(1) && rs1_addr.orR
-  val wdata = MuxLookup(
-    io.cmd,
-    0.U,
+  val wdata = MuxLookup(io.cmd, 0.U)(
     Seq(
       CSR.W -> io.in,
       CSR.S -> (io.out | io.in),
@@ -245,13 +243,11 @@ class CSR(val xlen: Int) extends Module {
     )
   )
   val iaddrInvalid = io.pc_check && io.addr(1)
-  val laddrInvalid = MuxLookup(
-    io.ld_type,
-    false.B,
+  val laddrInvalid = MuxLookup(io.ld_type, false.B)(
     Seq(Control.LD_LW -> io.addr(1, 0).orR, Control.LD_LH -> io.addr(0), Control.LD_LHU -> io.addr(0))
   )
   val saddrInvalid =
-    MuxLookup(io.st_type, false.B, Seq(Control.ST_SW -> io.addr(1, 0).orR, Control.ST_SH -> io.addr(0)))
+    MuxLookup(io.st_type, false.B)(Seq(Control.ST_SW -> io.addr(1, 0).orR, Control.ST_SH -> io.addr(0)))
   io.expt := io.illegal || iaddrInvalid || laddrInvalid || saddrInvalid ||
     io.cmd(1, 0).orR && (!csrValid || !privValid) || wen && csrRO ||
     (privInst && !privValid) || isEcall || isEbreak

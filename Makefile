@@ -4,7 +4,7 @@ base_dir   = $(abspath .)
 src_dir    = $(base_dir)/src/main
 gen_dir    = $(base_dir)/generated-src
 out_dir    = $(base_dir)/outputs
-nproc      = $(shell nproc --ignore 1)
+threads   ?= 1
 
 SBT       = sbt
 SBT_FLAGS = -ivy $(base_dir)/.ivy2
@@ -12,20 +12,20 @@ SBT_FLAGS = -ivy $(base_dir)/.ivy2
 sbt:
 	$(SBT) $(SBT_FLAGS)
 
-compile: $(gen_dir)/Tile.v
+compile: $(gen_dir)/Tile.sv
 
-$(gen_dir)/Tile.v: $(wildcard $(src_dir)/scala/*.scala)
-	$(SBT) $(SBT_FLAGS) "run $(gen_dir)"
+$(gen_dir)/Tile.sv: $(wildcard $(src_dir)/scala/*.scala)
+	$(SBT) $(SBT_FLAGS) "run --target-dir=$(gen_dir) --dump-fir"
 
-CXXFLAGS += -std=c++11 -Wall -Wno-unused-variable
+CXXFLAGS += -std=c++14 -Wall -Wno-unused-variable
 
 # compile verilator
 VERILATOR = verilator --cc --exe
-VERILATOR_FLAGS = --assert -Wno-STMTDLY -O3 --trace --threads $(nproc)\
+VERILATOR_FLAGS = --assert -Wno-STMTDLY -O3 --trace --threads $(threads)\
 	--top-module Tile -Mdir $(gen_dir)/VTile.csrc \
 	-CFLAGS "$(CXXFLAGS) -include $(gen_dir)/VTile.csrc/VTile.h" 
 
-$(base_dir)/VTile: $(gen_dir)/Tile.v $(src_dir)/cc/top.cc $(src_dir)/cc/mm.cc $(src_dir)/cc/mm.h
+$(base_dir)/VTile: $(gen_dir)/Tile.sv $(src_dir)/cc/top.cc $(src_dir)/cc/mm.cc $(src_dir)/cc/mm.h
 	$(VERILATOR) $(VERILATOR_FLAGS) -o $@ $< $(word 2, $^) $(word 3, $^)
 	$(MAKE) -C $(gen_dir)/VTile.csrc -f VTile.mk
 
